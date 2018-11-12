@@ -11,6 +11,9 @@ from twisted.python import log
 from twisted.internet import reactor
 from collections import namedtuple
 
+from avro.schema import parse as schema_parse
+from avro.protocol import parse as protocol_parse
+
 
 class ETPClient(Thread):
     def __init__(self, url, username, password):
@@ -118,12 +121,12 @@ class ETPClient(Thread):
 class ETPClientProtocol(WebSocketClientProtocol):
     def __init__(self):
         self.messageMaps = {}
-        self.messageHeaderSchema = avro.schema.Parse(open("Schemas/Energistics/Datatypes/MessageHeader.avsc").read())
+        self.messageHeaderSchema = schema_parse(open("Schemas/Energistics/Datatypes/MessageHeader.avsc").read())
         self.protocolsMessage = {}
 
         schema_path = "etp.avpr"
 
-        protocol = avro.protocol.Parse(open(schema_path).read())
+        protocol = protocol_parse(open(schema_path).read())
 
         for type in protocol.types:
             if "protocol" in type.other_props:
