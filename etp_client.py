@@ -11,8 +11,8 @@ from twisted.python import log
 from twisted.internet import reactor
 from collections import namedtuple
 
-from avro.schema import parse as schema_parse
-from avro.protocol import parse as protocol_parse
+from avro.schema import Parse as schema_parse
+from avro.protocol import Parse as protocol_parse
 
 
 class ETPClient(Thread):
@@ -33,8 +33,9 @@ class ETPClient(Thread):
         self.factory.on_etp_message = self.on_etp_message
 
     def on_etp_message(self, header, body):
-        print(header)
-        print(body)
+        self.header = header
+        self.body = body
+        self.request_completed = True
 
     def run(self):
         reactor.run(installSignalHandlers=0)
@@ -112,7 +113,11 @@ class ETPClient(Thread):
 
     def request_session(self):
         print("request session")
+        self.request_completed = False
         self.send_etp_message(self.create_request_session_message(), "Energistics.Protocol.Core.RequestSession")
+        while(not self.request_completed):
+            pass
+        return (self.header, self.body)
 
     def send_etp_message(self, message, messageType):
         self.factory.send_message(message, messageType)
@@ -186,12 +191,12 @@ class ETPClientProtocol(WebSocketClientProtocol):
         reader = avro.io.DatumReader(self.messageHeaderSchema)
         header = reader.read(decoder)
 
-        message_header = namedtuple("MessageHeader", header.keys())(*header.values())
+        message_header = namedtuple("MessageHeader", list(header.keys()))(*list(header.values()))
 
         reader = avro.io.DatumReader(self.protocolsMessage[message_header.protocol][message_header.messageType])
         body = reader.read(decoder)
 
-        message_body = namedtuple("MessageBody", body.keys())(*body.values())
+        message_body = namedtuple("MessageBody", list(body.keys()))(*list(body.values()))
 
         return message_header, message_body
 
